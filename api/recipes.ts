@@ -1,21 +1,5 @@
 import type { Request, Response } from 'express';
 
-export interface UsdaNutrient {
-  nutrientId: number;
-  nutrientName: string;
-  nutrientNumber: string;
-  unitName: string;
-  value: number;
-}
-
-export interface UsdaFoodItem {
-  fdcId: number;
-  description: string;
-  dataType: string;
-  foodNutrients: UsdaNutrient[];
-  brandName?: string;
-}
-
 export interface MealDbRecipe {
   idMeal: string;
   strMeal: string;
@@ -34,9 +18,14 @@ export interface EnrichedRecipeResponse {
     theMealDbEndpoint: string;
     usdaEndpoint: string;
   };
+  headers: {
+    accept: string;
+    accountKeyProvided: boolean;
+  };
   meals: MealDbRecipe[];
   usdaNutrition: {
     query: string;
+    keyConfigured: boolean;
     totalHits?: number;
     foods: Array<{
       fdcId: number;
@@ -56,9 +45,16 @@ export async function fetchMealDbRecipes(ingredient: string): Promise<MealDbReci
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
 
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+    };
+    if (process.env.LTA_ACCOUNT_KEY) {
+      headers['AccountKey'] = process.env.LTA_ACCOUNT_KEY;
+    }
+
     const res = await fetch(endpoint, {
       signal: controller.signal,
-      headers: { Accept: 'application/json' },
+      headers,
     });
 
     clearTimeout(timeout);
@@ -70,34 +66,28 @@ export async function fetchMealDbRecipes(ingredient: string): Promise<MealDbReci
     const data: any = await res.json();
     return Array.isArray(data?.meals) ? data.meals : [];
   } catch (err) {
-    console.warn(`[TheMealDB] Failed to fetch recipes for "${ingredient}":`, err);
-    // Graceful fallback for offline / rate-limited situations
-    return [
-      {
-        idMeal: '52772',
-        strMeal: 'Teriyaki Chicken Casserole',
-        strMealThumb: 'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg',
-      },
-      {
-        idMeal: '52850',
-        strMeal: 'Chicken Couscous Bowl',
-        strMealThumb: 'https://www.themealdb.com/images/media/meals/qxytrx1511304021.jpg',
-      },
-      {
-        idMeal: '52940',
-        strMeal: 'Brown Stew Chicken & Sweet Pepper',
-        strMealThumb: 'https://www.themealdb.com/images/media/meals/sypxpx1515365095.jpg',
-      },
-    ];
+    console.warn(`[TheMealDB] Fetch error for "${ingredient}":`, err);
+    return [];
   }
 }
 
 export async function fetchUsdaNutrition(query: string, pageSize = 5): Promise<{
   foods: any[];
   totalHits?: number;
+  keyConfigured: boolean;
   note?: string;
 }> {
-  const apiKey = process.env.DATA_GOV_KEY || 'DEMO_KEY';
+  const apiKey = process.env.DATA_GOV_KEY;
+  const ltaAccountKey = process.env.LTA_ACCOUNT_KEY;
+
+  if (!apiKey) {
+    return {
+      foods: [],
+      keyConfigured: false,
+      note: 'DATA_GOV_KEY environment variable is not configured. Please supply your API key to enable live USDA FoodData Central retrieval.',
+    };
+  }
+
   const endpoint = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(
     query
   )}&pageSize=${pageSize}&api_key=${encodeURIComponent(apiKey)}`;
@@ -106,30 +96,26 @@ export async function fetchUsdaNutrition(query: string, pageSize = 5): Promise<{
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
 
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+    };
+    if (ltaAccountKey) {
+      headers['AccountKey'] = ltaAccountKey;
+    }
+
     const res = await fetch(endpoint, {
       signal: controller.signal,
-      headers: { Accept: 'application/json' },
+      headers,
     });
 
     clearTimeout(timeout);
 
     if (res.status === 429) {
       return {
-        foods: [
-          {
-            fdcId: 173418,
-            description: `${query.toUpperCase()} (Cached Standard Reference)`,
-            nutrients: {
-              Energy: { value: 403, unit: 'kcal' },
-              Protein: { value: 24.9, unit: 'g' },
-              'Total lipid (fat)': { value: 33.1, unit: 'g' },
-              'Carbohydrate, by difference': { value: 1.3, unit: 'g' },
-              'Calcium, Ca': { value: 721, unit: 'mg' },
-            },
-          },
-        ],
-        totalHits: 1,
-        note: 'USDA rate limit reached for DEMO_KEY. Returned cached USDA Standard Reference.',
+        foods: [],
+        keyConfigured: true,
+        totalHits: 0,
+        note: 'USDA rate limit reached for the configured key.',
       };
     }
 
@@ -163,22 +149,14 @@ export async function fetchUsdaNutrition(query: string, pageSize = 5): Promise<{
     return {
       foods: formattedFoods,
       totalHits: data.totalHits,
+      keyConfigured: true,
     };
   } catch (err: any) {
     console.warn(`[USDA FoodData] Fetch error for "${query}":`, err?.message);
     return {
-      foods: [
-        {
-          fdcId: 1001,
-          description: `${query} (USDA Fallback)`,
-          nutrients: {
-            Energy: { value: 250, unit: 'kcal' },
-            Protein: { value: 22, unit: 'g' },
-            'Total lipid (fat)': { value: 9, unit: 'g' },
-          },
-        },
-      ],
-      note: 'Live connection interrupted, returned fallback reference.',
+      foods: [],
+      keyConfigured: true,
+      note: `Live USDA connection failed: ${err?.message || 'unknown error'}`,
     };
   }
 }
@@ -203,11 +181,16 @@ export default async function recipesHandler(req: Request, res: Response) {
     },
     sources: {
       theMealDbEndpoint: `https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(ingredient)}`,
-      usdaEndpoint: `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(nutritionQuery)}&pageSize=${pageSize}&api_key=DATA_GOV_KEY`,
+      usdaEndpoint: `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(nutritionQuery)}&pageSize=${pageSize}&api_key=<DATA_GOV_KEY>`,
+    },
+    headers: {
+      accept: 'application/json',
+      accountKeyProvided: Boolean(process.env.LTA_ACCOUNT_KEY),
     },
     meals,
     usdaNutrition: {
       query: nutritionQuery,
+      keyConfigured: usdaResult.keyConfigured,
       totalHits: usdaResult.totalHits,
       foods: usdaResult.foods,
       note: usdaResult.note,

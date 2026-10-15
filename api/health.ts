@@ -6,11 +6,12 @@ export interface HealthCheckResult {
   uptimeSeconds: number;
   connections: {
     usdaFoodDataCentral: {
-      status: 'connected' | 'error' | 'rate_limited';
+      status: 'connected' | 'unconfigured' | 'error' | 'rate_limited';
       endpoint: string;
       latencyMs?: number;
       error?: string;
       sampleItemCount?: number;
+      keyConfigured: boolean;
     };
     theMealDb: {
       status: 'connected' | 'error';
@@ -23,13 +24,25 @@ export interface HealthCheckResult {
 }
 
 export async function checkUsdaHealth(): Promise<{
-  status: 'connected' | 'error' | 'rate_limited';
+  status: 'connected' | 'unconfigured' | 'error' | 'rate_limited';
   endpoint: string;
   latencyMs?: number;
   error?: string;
   sampleItemCount?: number;
+  keyConfigured: boolean;
 }> {
-  const apiKey = process.env.DATA_GOV_KEY || 'DEMO_KEY';
+  const apiKey = process.env.DATA_GOV_KEY;
+  const ltaAccountKey = process.env.LTA_ACCOUNT_KEY;
+
+  if (!apiKey) {
+    return {
+      status: 'unconfigured',
+      endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5&api_key=<DATA_GOV_KEY>',
+      keyConfigured: false,
+      error: 'DATA_GOV_KEY environment variable is not set. Please provide your API key in environment variables.',
+    };
+  }
+
   const endpoint = `https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5&api_key=${encodeURIComponent(apiKey)}`;
   const startTime = Date.now();
 
@@ -37,11 +50,16 @@ export async function checkUsdaHealth(): Promise<{
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+    };
+    if (ltaAccountKey) {
+      headers['AccountKey'] = ltaAccountKey;
+    }
+
     const res = await fetch(endpoint, {
       signal: controller.signal,
-      headers: {
-        Accept: 'application/json',
-      },
+      headers,
     });
 
     clearTimeout(timeoutId);
@@ -52,7 +70,8 @@ export async function checkUsdaHealth(): Promise<{
         status: 'rate_limited',
         endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search',
         latencyMs,
-        error: 'USDA FoodData Central DEMO_KEY hourly rate limit reached.',
+        keyConfigured: true,
+        error: 'USDA FoodData Central API rate limit reached.',
       };
     }
 
@@ -61,6 +80,7 @@ export async function checkUsdaHealth(): Promise<{
         status: 'error',
         endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search',
         latencyMs,
+        keyConfigured: true,
         error: `HTTP ${res.status}: ${res.statusText}`,
       };
     }
@@ -70,6 +90,7 @@ export async function checkUsdaHealth(): Promise<{
       status: 'connected',
       endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search',
       latencyMs,
+      keyConfigured: true,
       sampleItemCount: Array.isArray(data?.foods) ? data.foods.length : 0,
     };
   } catch (err: any) {
@@ -77,6 +98,7 @@ export async function checkUsdaHealth(): Promise<{
       status: 'error',
       endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search',
       latencyMs: Date.now() - startTime,
+      keyConfigured: true,
       error: err?.message || 'Connection failed',
     };
   }
@@ -96,11 +118,16 @@ export async function checkMealDbHealth(): Promise<{
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+    };
+    if (process.env.LTA_ACCOUNT_KEY) {
+      headers['AccountKey'] = process.env.LTA_ACCOUNT_KEY;
+    }
+
     const res = await fetch(endpoint, {
       signal: controller.signal,
-      headers: {
-        Accept: 'application/json',
-      },
+      headers,
     });
 
     clearTimeout(timeoutId);
@@ -156,5 +183,5 @@ export default async function healthHandler(req: Request, res: Response) {
   };
 
   res.setHeader('Content-Type', 'application/json');
-  return res.status(isError ? 503 : 200).json(healthData);
+  return res.status(200).json(healthData);
 }
