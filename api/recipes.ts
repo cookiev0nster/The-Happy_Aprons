@@ -1,5 +1,13 @@
 import type { Request, Response } from 'express';
 
+export interface UsdaNutrient {
+  nutrientId: number;
+  nutrientName: string;
+  nutrientNumber: string;
+  unitName: string;
+  value: number;
+}
+
 export interface MealDbRecipe {
   idMeal: string;
   strMeal: string;
@@ -18,14 +26,10 @@ export interface EnrichedRecipeResponse {
     theMealDbEndpoint: string;
     usdaEndpoint: string;
   };
-  headers: {
-    accept: string;
-    accountKeyProvided: boolean;
-  };
   meals: MealDbRecipe[];
   usdaNutrition: {
+    status: 'connected' | 'unconfigured' | 'error';
     query: string;
-    keyConfigured: boolean;
     totalHits?: number;
     foods: Array<{
       fdcId: number;
@@ -33,7 +37,8 @@ export interface EnrichedRecipeResponse {
       brandOwner?: string;
       nutrients: Record<string, { value: number; unit: string }>;
     }>;
-    note?: string;
+    message?: string;
+    error?: string;
   };
 }
 
@@ -45,16 +50,12 @@ export async function fetchMealDbRecipes(ingredient: string): Promise<MealDbReci
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
 
-    const headers: Record<string, string> = {
-      accept: 'application/json',
-    };
-    if (process.env.LTA_ACCOUNT_KEY) {
-      headers['AccountKey'] = process.env.LTA_ACCOUNT_KEY;
-    }
-
     const res = await fetch(endpoint, {
+      method: 'GET',
       signal: controller.signal,
-      headers,
+      headers: {
+        accept: 'application/json',
+      },
     });
 
     clearTimeout(timeout);
@@ -66,25 +67,28 @@ export async function fetchMealDbRecipes(ingredient: string): Promise<MealDbReci
     const data: any = await res.json();
     return Array.isArray(data?.meals) ? data.meals : [];
   } catch (err) {
-    console.warn(`[TheMealDB] Fetch error for "${ingredient}":`, err);
+    console.warn(`[TheMealDB] Failed to fetch recipes for "${ingredient}":`, err);
     return [];
   }
 }
 
 export async function fetchUsdaNutrition(query: string, pageSize = 5): Promise<{
+  status: 'connected' | 'unconfigured' | 'error';
   foods: any[];
   totalHits?: number;
-  keyConfigured: boolean;
-  note?: string;
+  message?: string;
+  error?: string;
 }> {
-  const apiKey = process.env.DATA_GOV_KEY;
-  const ltaAccountKey = process.env.LTA_ACCOUNT_KEY;
+  const apiKey = (process.env.DATA_GOV_KEY || '').trim();
+  const endpointTemplate = 'https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5&api_key=<DATA_GOV_KEY>';
 
+  // If no key is set yet, do not use any fallback key
   if (!apiKey) {
     return {
+      status: 'unconfigured',
       foods: [],
-      keyConfigured: false,
-      note: 'DATA_GOV_KEY environment variable is not configured. Please supply your API key to enable live USDA FoodData Central retrieval.',
+      totalHits: 0,
+      message: 'DATA_GOV_KEY environment variable is not configured yet. Set DATA_GOV_KEY in your environment to fetch live USDA FoodData Central records.',
     };
   }
 
@@ -96,31 +100,31 @@ export async function fetchUsdaNutrition(query: string, pageSize = 5): Promise<{
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
 
-    const headers: Record<string, string> = {
-      accept: 'application/json',
-    };
-    if (ltaAccountKey) {
-      headers['AccountKey'] = ltaAccountKey;
-    }
-
     const res = await fetch(endpoint, {
+      method: 'GET',
       signal: controller.signal,
-      headers,
+      headers: {
+        accept: 'application/json',
+        AccountKey: apiKey,
+      },
     });
 
     clearTimeout(timeout);
 
     if (res.status === 429) {
       return {
+        status: 'error',
         foods: [],
-        keyConfigured: true,
-        totalHits: 0,
-        note: 'USDA rate limit reached for the configured key.',
+        error: 'USDA rate limit exceeded for the provided DATA_GOV_KEY.',
       };
     }
 
     if (!res.ok) {
-      throw new Error(`USDA API HTTP ${res.status}: ${res.statusText}`);
+      return {
+        status: 'error',
+        foods: [],
+        error: `USDA API HTTP ${res.status}: ${res.statusText}`,
+      };
     }
 
     const data: any = await res.json();
@@ -147,16 +151,15 @@ export async function fetchUsdaNutrition(query: string, pageSize = 5): Promise<{
     });
 
     return {
+      status: 'connected',
       foods: formattedFoods,
       totalHits: data.totalHits,
-      keyConfigured: true,
     };
   } catch (err: any) {
-    console.warn(`[USDA FoodData] Fetch error for "${query}":`, err?.message);
     return {
+      status: 'error',
       foods: [],
-      keyConfigured: true,
-      note: `Live USDA connection failed: ${err?.message || 'unknown error'}`,
+      error: err?.message || 'Connection to USDA FoodData Central failed',
     };
   }
 }
@@ -183,17 +186,14 @@ export default async function recipesHandler(req: Request, res: Response) {
       theMealDbEndpoint: `https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(ingredient)}`,
       usdaEndpoint: `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(nutritionQuery)}&pageSize=${pageSize}&api_key=<DATA_GOV_KEY>`,
     },
-    headers: {
-      accept: 'application/json',
-      accountKeyProvided: Boolean(process.env.LTA_ACCOUNT_KEY),
-    },
     meals,
     usdaNutrition: {
+      status: usdaResult.status,
       query: nutritionQuery,
-      keyConfigured: usdaResult.keyConfigured,
       totalHits: usdaResult.totalHits,
       foods: usdaResult.foods,
-      note: usdaResult.note,
+      message: usdaResult.message,
+      error: usdaResult.error,
     },
   };
 

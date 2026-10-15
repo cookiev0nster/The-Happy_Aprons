@@ -24,7 +24,6 @@ interface LiveApiResponse {
   }>;
   usdaNutrition: {
     query: string;
-    keyConfigured?: boolean;
     totalHits?: number;
     foods: Array<{
       fdcId: number;
@@ -285,32 +284,39 @@ export const RecipeDiscover: React.FC<RecipeDiscoverProps> = ({
 
               <div className="p-4 rounded-xl bg-[#edf6ee]/70 border border-[#dce5dd]/60 flex items-start gap-3">
                 <span className="material-symbols-outlined text-[#164530] text-[24px]">
-                  {healthStatus?.connections?.usdaFoodDataCentral?.keyConfigured ? 'verified' : 'vpn_key'}
+                  {healthStatus?.connections?.usdaFoodDataCentral?.status === 'connected'
+                    ? 'verified'
+                    : healthStatus?.connections?.usdaFoodDataCentral?.status === 'unconfigured'
+                    ? 'vpn_key'
+                    : 'info'}
                 </span>
                 <div>
                   <div className="flex items-center gap-2">
                     <strong className="text-xs text-[#151d19]">USDA FoodData Central</strong>
                     <span
                       className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                        healthStatus?.connections?.usdaFoodDataCentral?.keyConfigured
+                        healthStatus?.connections?.usdaFoodDataCentral?.status === 'connected'
                           ? 'bg-[#bceed0] text-[#002113]'
-                          : 'bg-[#ffdbce] text-[#380d00]'
+                          : 'bg-[#ffddb0] text-[#553800]'
                       }`}
                     >
-                      {healthStatus?.connections?.usdaFoodDataCentral?.keyConfigured
-                        ? 'Key Active'
-                        : 'Key Pending (DATA_GOV_KEY)'}
+                      {healthStatus?.connections?.usdaFoodDataCentral?.status === 'connected'
+                        ? 'Connected'
+                        : 'Awaiting DATA_GOV_KEY'}
                     </span>
                   </div>
                   <p className="text-[11px] text-[#414943] mt-0.5 font-mono-data">
-                    Endpoint: https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5
+                    GET https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5&api_key=&lt;DATA_GOV_KEY&gt;
                   </p>
-                  {healthStatus?.connections?.usdaFoodDataCentral?.error && (
-                    <span className="text-[11px] text-[#9a4521] font-medium mt-1 block">
-                      {healthStatus.connections.usdaFoodDataCentral.error}
+                  <p className="text-[10px] text-[#717973] font-mono-data">
+                    Headers: AccountKey: &lt;DATA_GOV_KEY&gt; · accept: application/json
+                  </p>
+                  {healthStatus?.connections?.usdaFoodDataCentral?.message && (
+                    <span className="text-[11px] text-[#553800] mt-1 block">
+                      {healthStatus.connections.usdaFoodDataCentral.message}
                     </span>
                   )}
-                  {healthStatus?.connections?.usdaFoodDataCentral?.latencyMs && (
+                  {healthStatus?.connections?.usdaFoodDataCentral?.latencyMs !== undefined && (
                     <span className="text-[11px] text-[#164530] font-mono-data mt-1 block">
                       Latency: {healthStatus.connections.usdaFoodDataCentral.latencyMs}ms · Items:{' '}
                       {healthStatus.connections.usdaFoodDataCentral.sampleItemCount}
@@ -423,16 +429,6 @@ export const RecipeDiscover: React.FC<RecipeDiscoverProps> = ({
               {isLoadingLive ? (
                 <div className="py-12 text-center text-xs text-[#414943]">
                   Fetching USDA nutrient profiles...
-                </div>
-              ) : liveData?.usdaNutrition?.keyConfigured === false ? (
-                <div className="p-4 rounded-xl bg-[#edf6ee] border border-[#dce5dd] text-xs text-[#414943] space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-[#151d19]">
-                    <span className="material-symbols-outlined text-[#9a4521] text-[18px]">key</span>
-                    <span>USDA FoodData Central Key Pending</span>
-                  </div>
-                  <p className="text-[11px] leading-relaxed">
-                    The serverless endpoint is ready and waiting for your key. When you set <code className="bg-white px-1.5 py-0.5 rounded border border-[#dce5dd] text-[#164530] font-mono">DATA_GOV_KEY</code> and optional <code className="bg-white px-1.5 py-0.5 rounded border border-[#dce5dd] text-[#164530] font-mono">LTA_ACCOUNT_KEY</code> in environment variables, live USDA macro data will populate here automatically.
-                  </p>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">

@@ -1,65 +1,58 @@
 import type { Request, Response } from 'express';
 
-export interface HealthCheckResult {
-  status: 'ok' | 'degraded' | 'error';
-  timestamp: string;
-  uptimeSeconds: number;
-  connections: {
-    usdaFoodDataCentral: {
-      status: 'connected' | 'unconfigured' | 'error' | 'rate_limited';
-      endpoint: string;
-      latencyMs?: number;
-      error?: string;
-      sampleItemCount?: number;
-      keyConfigured: boolean;
-    };
-    theMealDb: {
-      status: 'connected' | 'error';
-      endpoint: string;
-      latencyMs?: number;
-      error?: string;
-      sampleRecipeCount?: number;
-    };
-  };
+export interface UsdaHealthStatus {
+  status: 'connected' | 'unconfigured' | 'rate_limited' | 'error';
+  endpoint: string;
+  latencyMs?: number;
+  message?: string;
+  error?: string;
+  sampleItemCount?: number;
 }
 
-export async function checkUsdaHealth(): Promise<{
-  status: 'connected' | 'unconfigured' | 'error' | 'rate_limited';
+export interface MealDbHealthStatus {
+  status: 'connected' | 'error';
   endpoint: string;
   latencyMs?: number;
   error?: string;
-  sampleItemCount?: number;
-  keyConfigured: boolean;
-}> {
-  const apiKey = process.env.DATA_GOV_KEY;
-  const ltaAccountKey = process.env.LTA_ACCOUNT_KEY;
+  sampleRecipeCount?: number;
+}
+
+export interface HealthCheckResult {
+  status: 'ok' | 'degraded' | 'unconfigured';
+  timestamp: string;
+  uptimeSeconds: number;
+  connections: {
+    usdaFoodDataCentral: UsdaHealthStatus;
+    theMealDb: MealDbHealthStatus;
+  };
+}
+
+export async function checkUsdaHealth(): Promise<UsdaHealthStatus> {
+  const apiKey = (process.env.DATA_GOV_KEY || '').trim();
+  const endpointTemplate = 'https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5&api_key=<DATA_GOV_KEY>';
 
   if (!apiKey) {
     return {
       status: 'unconfigured',
-      endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5&api_key=<DATA_GOV_KEY>',
-      keyConfigured: false,
-      error: 'DATA_GOV_KEY environment variable is not set. Please provide your API key in environment variables.',
+      endpoint: endpointTemplate,
+      message: 'DATA_GOV_KEY environment variable is not configured yet. Please provide your USDA Data.gov API key.',
     };
   }
 
-  const endpoint = `https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5&api_key=${encodeURIComponent(apiKey)}`;
+  const requestUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5&api_key=${encodeURIComponent(apiKey)}`;
   const startTime = Date.now();
 
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    const headers: Record<string, string> = {
-      accept: 'application/json',
-    };
-    if (ltaAccountKey) {
-      headers['AccountKey'] = ltaAccountKey;
-    }
-
-    const res = await fetch(endpoint, {
+    const res = await fetch(requestUrl, {
+      method: 'GET',
       signal: controller.signal,
-      headers,
+      headers: {
+        accept: 'application/json',
+        AccountKey: apiKey,
+      },
     });
 
     clearTimeout(timeoutId);
@@ -68,19 +61,17 @@ export async function checkUsdaHealth(): Promise<{
     if (res.status === 429) {
       return {
         status: 'rate_limited',
-        endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search',
+        endpoint: endpointTemplate,
         latencyMs,
-        keyConfigured: true,
-        error: 'USDA FoodData Central API rate limit reached.',
+        error: 'USDA FoodData Central rate limit reached for the configured key.',
       };
     }
 
     if (!res.ok) {
       return {
         status: 'error',
-        endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search',
+        endpoint: endpointTemplate,
         latencyMs,
-        keyConfigured: true,
         error: `HTTP ${res.status}: ${res.statusText}`,
       };
     }
@@ -88,29 +79,21 @@ export async function checkUsdaHealth(): Promise<{
     const data: any = await res.json();
     return {
       status: 'connected',
-      endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search',
+      endpoint: endpointTemplate,
       latencyMs,
-      keyConfigured: true,
       sampleItemCount: Array.isArray(data?.foods) ? data.foods.length : 0,
     };
   } catch (err: any) {
     return {
       status: 'error',
-      endpoint: 'https://api.nal.usda.gov/fdc/v1/foods/search',
+      endpoint: endpointTemplate,
       latencyMs: Date.now() - startTime,
-      keyConfigured: true,
       error: err?.message || 'Connection failed',
     };
   }
 }
 
-export async function checkMealDbHealth(): Promise<{
-  status: 'connected' | 'error';
-  endpoint: string;
-  latencyMs?: number;
-  error?: string;
-  sampleRecipeCount?: number;
-}> {
+export async function checkMealDbHealth(): Promise<MealDbHealthStatus> {
   const endpoint = 'https://www.themealdb.com/api/json/v1/1/filter.php?i=chicken_breast';
   const startTime = Date.now();
 
@@ -118,16 +101,12 @@ export async function checkMealDbHealth(): Promise<{
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-    const headers: Record<string, string> = {
-      accept: 'application/json',
-    };
-    if (process.env.LTA_ACCOUNT_KEY) {
-      headers['AccountKey'] = process.env.LTA_ACCOUNT_KEY;
-    }
-
     const res = await fetch(endpoint, {
+      method: 'GET',
       signal: controller.signal,
-      headers,
+      headers: {
+        accept: 'application/json',
+      },
     });
 
     clearTimeout(timeoutId);
@@ -136,7 +115,7 @@ export async function checkMealDbHealth(): Promise<{
     if (!res.ok) {
       return {
         status: 'error',
-        endpoint: 'https://www.themealdb.com/api/json/v1/1/filter.php',
+        endpoint,
         latencyMs,
         error: `HTTP ${res.status}: ${res.statusText}`,
       };
@@ -147,14 +126,14 @@ export async function checkMealDbHealth(): Promise<{
 
     return {
       status: 'connected',
-      endpoint: 'https://www.themealdb.com/api/json/v1/1/filter.php',
+      endpoint,
       latencyMs,
       sampleRecipeCount: count,
     };
   } catch (err: any) {
     return {
       status: 'error',
-      endpoint: 'https://www.themealdb.com/api/json/v1/1/filter.php',
+      endpoint,
       latencyMs: Date.now() - startTime,
       error: err?.message || 'Connection failed',
     };
@@ -167,13 +146,15 @@ export default async function healthHandler(req: Request, res: Response) {
     checkMealDbHealth(),
   ]);
 
-  const isDegraded =
-    usdaResult.status !== 'connected' || mealDbResult.status !== 'connected';
-  const isError =
-    usdaResult.status === 'error' && mealDbResult.status === 'error';
+  let overallStatus: 'ok' | 'degraded' | 'unconfigured' = 'ok';
+  if (usdaResult.status === 'unconfigured') {
+    overallStatus = 'unconfigured';
+  } else if (usdaResult.status !== 'connected' || mealDbResult.status !== 'connected') {
+    overallStatus = 'degraded';
+  }
 
   const healthData: HealthCheckResult = {
-    status: isError ? 'error' : isDegraded ? 'degraded' : 'ok',
+    status: overallStatus,
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
     connections: {
