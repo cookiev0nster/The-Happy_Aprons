@@ -52,7 +52,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`The Happy Aprons server running at http://0.0.0.0:${PORT}`);
+    console.log(`NourishMe server running at http://0.0.0.0:${PORT}`);
   });
 }
 
