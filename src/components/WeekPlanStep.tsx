@@ -293,7 +293,7 @@ export const WeekPlanStep: React.FC<WeekPlanStepProps> = ({
           </div>
           <div>
             <h3 className="text-base sm:text-lg font-bold text-[#151d19]">
-              How The Happy Aprons Pantry Engine Prevents Food Waste
+              How The NourishMe Zero-Waste Pantry Engine Prevents Food Waste
             </h3>
             <p className="text-xs sm:text-sm text-[#414943] mt-1 leading-relaxed">
               In traditional meal planning, buying 1 bundle of scallions or fresh dill leaves 70% unused until it spoils. Our cross-day pairing algorithm schedules your week so that perishable ingredients are completely exhausted by your final active dinner night.
