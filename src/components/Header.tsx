@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 interface HeaderProps {
   currentTab: string;
@@ -13,125 +13,77 @@ export const Header: React.FC<HeaderProps> = ({
   cartCount,
   onOpenCart,
 }) => {
-  const [showUserMenu, setShowUserMenu] = useState(false);
-
   return (
-    <header className="fixed top-0 w-full z-50 bg-[#f3fcf3]/90 backdrop-blur-md border-b border-[#e2eae2]/60 shadow-[0_1px_8px_rgba(0,0,0,0.03)]">
-      <div className="h-20 max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-6">
-        {/* Brand Zone */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onSelectTab('preferences')}
-            className="flex items-center gap-2.5 text-left focus:outline-none group cursor-pointer"
-          >
-            <div className="w-9 h-9 rounded-full bg-[#164530] flex items-center justify-center text-[#bceed0] shadow-sm transition-transform group-hover:scale-105">
-              <span className="material-symbols-outlined text-[20px]">apron</span>
-            </div>
-            <span className="text-[19px] font-bold text-[#164530] tracking-tight whitespace-nowrap">
-              The Happy Aprons
-            </span>
-          </button>
-        </div>
+    <header className="fixed top-0 w-full z-50 bg-[#f3fcf3]/95 backdrop-blur-md border-b border-[#e2eae2] shadow-xs">
+      <div className="h-16 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-8">
+        {/* Zone 1: Single text element wordmark */}
+        <button
+          onClick={() => onSelectTab('meal-planner')}
+          className="text-lg font-bold tracking-tight text-[#164530] whitespace-nowrap shrink-0 hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-2"
+        >
+          <span className="material-symbols-outlined text-[22px] text-[#164530]">elderly</span>
+          <span>The Happy Aprons</span>
+        </button>
 
-        {/* Nav Links */}
-        <nav className="hidden lg:flex items-center gap-1 bg-[#edf6ee] p-1 rounded-full border border-[#dce5dd]/60">
+        {/* Zone 2: 4 clean single-line text navigation links */}
+        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#414943]">
           <button
             onClick={() => onSelectTab('meal-planner')}
-            className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
+            className={`whitespace-nowrap shrink-0 hover:text-[#164530] transition-colors cursor-pointer py-1 ${
               currentTab === 'meal-planner'
-                ? 'bg-[#164530] text-white shadow-sm'
-                : 'text-[#414943] hover:text-[#151d19] hover:bg-[#e2eae2]/50'
+                ? 'text-[#164530] font-bold border-b-2 border-[#164530]'
+                : ''
             }`}
           >
-            Meal Planner
+            Weekly Menus
           </button>
           <button
-            onClick={() => onSelectTab('my-pantry-cart')}
-            className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
-              currentTab === 'my-pantry-cart'
-                ? 'bg-[#164530] text-white shadow-sm'
-                : 'text-[#414943] hover:text-[#151d19] hover:bg-[#e2eae2]/50'
+            onClick={() => onSelectTab('elderly-setup')}
+            className={`whitespace-nowrap shrink-0 hover:text-[#164530] transition-colors cursor-pointer py-1 ${
+              currentTab === 'elderly-setup'
+                ? 'text-[#164530] font-bold border-b-2 border-[#164530]'
+                : ''
             }`}
           >
-            My Pantry & Cart
+            Caregiver Setup
           </button>
           <button
-            onClick={() => onSelectTab('recipe-discover')}
-            className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
-              currentTab === 'recipe-discover'
-                ? 'bg-[#164530] text-white shadow-sm'
-                : 'text-[#414943] hover:text-[#151d19] hover:bg-[#e2eae2]/50'
+            onClick={() => onSelectTab('recipe-library')}
+            className={`whitespace-nowrap shrink-0 hover:text-[#164530] transition-colors cursor-pointer py-1 ${
+              currentTab === 'recipe-library'
+                ? 'text-[#164530] font-bold border-b-2 border-[#164530]'
+                : ''
             }`}
           >
-            Recipe Discover
+            Recipe Library
           </button>
           <button
-            onClick={() => onSelectTab('preferences')}
-            className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all cursor-pointer ${
-              currentTab === 'preferences'
-                ? 'bg-[#164530] text-white shadow-sm'
-                : 'text-[#414943] hover:text-[#151d19] hover:bg-[#e2eae2]/50'
+            onClick={() => onSelectTab('nutrition-guide')}
+            className={`whitespace-nowrap shrink-0 hover:text-[#164530] transition-colors cursor-pointer py-1 ${
+              currentTab === 'nutrition-guide'
+                ? 'text-[#164530] font-bold border-b-2 border-[#164530]'
+                : ''
             }`}
           >
-            Preferences
+            Elderly Nutrition
           </button>
         </nav>
 
-        {/* Action Zone: Cart + Profile */}
-        <div className="flex items-center gap-3">
+        {/* Zone 3: 1 primary action */}
+        <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={onOpenCart}
-            aria-label="View Grocery Cart"
-            className="relative p-2 rounded-full text-[#414943] hover:text-[#151d19] hover:bg-[#edf6ee] transition-colors cursor-pointer"
+            aria-label="Open Singapore Supermarket Shopping Basket"
+            className="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#164530] hover:bg-[#23583f] rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-2 shadow-xs cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[24px]">shopping_basket</span>
+            <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
+            <span>SG Supermarket Basket</span>
             {cartCount > 0 && (
-              <span className="absolute 0 top-1 right-1 w-4 h-4 rounded-full bg-[#9a4521] text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-[#bceed0] text-[#002113] text-[11px] font-bold">
                 {cartCount}
               </span>
             )}
           </button>
-
-          <div className="relative">
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-1.5 p-1 rounded-full hover:bg-[#edf6ee] transition-colors cursor-pointer"
-            >
-              <div className="w-8 h-8 rounded-full bg-[#164530]/10 border border-[#164530]/20 flex items-center justify-center overflow-hidden">
-                <span className="text-xs font-bold text-[#164530]">SG</span>
-              </div>
-              <span className="material-symbols-outlined text-[#414943] text-[18px]">expand_more</span>
-            </button>
-
-            {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#e2eae2] py-2 z-50 text-left">
-                <div className="px-4 py-2 border-b border-[#edf6ee]">
-                  <p className="text-xs font-bold text-[#151d19]">cookiev0nster@gmail.com</p>
-                  <p className="text-[11px] text-[#414943]">Singapore Atelier Member</p>
-                </div>
-                <button
-                  onClick={() => {
-                    onSelectTab('preferences');
-                    setShowUserMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-xs text-[#151d19] hover:bg-[#edf6ee] flex items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-[16px] text-[#164530]">tune</span>
-                  Kitchen Calibration Profile
-                </button>
-                <button
-                  onClick={() => {
-                    onSelectTab('my-pantry-cart');
-                    setShowUserMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-xs text-[#151d19] hover:bg-[#edf6ee] flex items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-[16px] text-[#164530]">local_shipping</span>
-                  Grocer Delivery Connect
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </header>

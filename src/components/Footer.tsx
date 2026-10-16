@@ -6,38 +6,43 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onSelectTab }) => {
   return (
-    <footer className="w-full bg-[#edf6ee] py-10 mt-16 border-t border-[#dce5dd]/60">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+    <footer className="w-full bg-[#edf6ee] py-8 mt-16 border-t border-[#dce5dd]">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
         <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-full bg-[#164530] flex items-center justify-center text-[#bceed0]">
-            <span className="material-symbols-outlined text-[14px]">apron</span>
-          </div>
+          <span className="material-symbols-outlined text-[20px] text-[#164530]">elderly</span>
           <span className="text-xs sm:text-sm font-semibold text-[#414943]">
-            © 2025 The Happy Aprons. Nourishing everyday living in Singapore.
+            © The Happy Aprons · Elderly & Caregiver Meal Nutrition Platform (Singapore)
           </span>
         </div>
 
-        <div className="flex items-center gap-6">
-          <button
-            type="button"
-            onClick={() => onSelectTab('preferences')}
-            className="text-xs font-semibold text-[#414943] hover:text-[#164530] transition-colors cursor-pointer"
-          >
-            Dietary Profiles
-          </button>
+        <div className="flex items-center gap-6 text-xs font-semibold text-[#414943]">
           <button
             type="button"
             onClick={() => onSelectTab('meal-planner')}
-            className="text-xs font-semibold text-[#414943] hover:text-[#164530] transition-colors cursor-pointer"
+            className="hover:text-[#164530] transition-colors cursor-pointer"
           >
-            Weekly Cadence
+            Weekly Menus
           </button>
           <button
             type="button"
-            onClick={() => onSelectTab('recipe-discover')}
-            className="text-xs font-semibold text-[#414943] hover:text-[#164530] transition-colors cursor-pointer"
+            onClick={() => onSelectTab('elderly-setup')}
+            className="hover:text-[#164530] transition-colors cursor-pointer"
           >
-            Atelier Recipes
+            Caregiver Setup
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectTab('recipe-library')}
+            className="hover:text-[#164530] transition-colors cursor-pointer"
+          >
+            Recipe Library
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectTab('nutrition-guide')}
+            className="hover:text-[#164530] transition-colors cursor-pointer"
+          >
+            Nutrition Guidelines
           </button>
         </div>
       </div>

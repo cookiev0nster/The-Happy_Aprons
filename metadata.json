@@ -1,6 +1,6 @@
 {
   "name": "The Happy Aprons",
-  "description": "Smart, zero-waste meal planning platform for busy Singapore professionals. End 6 PM dinner fatigue with automated pantry calibration, dynamic portions, and local grocer sync.",
+  "description": "Weekly meal-by-meal food recipe and nutrition planning platform for elderly seniors and their caregivers in Singapore. Scaled ingredients, IDDSI texture modification, and 1-click links to local online supermarkets.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

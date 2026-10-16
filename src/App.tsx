@@ -1,167 +1,102 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState } from 'react';
 import { Header } from './components/Header';
-import { StepProgressBar } from './components/StepProgressBar';
-import { ProfileStep } from './components/ProfileStep';
-import { NutritionStep } from './components/NutritionStep';
-import { PantryStep } from './components/PantryStep';
-import { WeekPlanStep } from './components/WeekPlanStep';
+import { ElderlySetupStep } from './components/ElderlySetupStep';
+import { ElderlyWeekPlanStep } from './components/ElderlyWeekPlanStep';
 import { RecipeDiscover } from './components/RecipeDiscover';
+import { NutritionGuideStep } from './components/NutritionGuideStep';
 import { RecipeModal } from './components/RecipeModal';
 import { CartDrawer } from './components/CartDrawer';
 import { Footer } from './components/Footer';
-import { ProfileState, Recipe } from './types';
-import { RECIPES } from './data/mockData';
+import { ElderlyProfileState, Recipe } from './types';
+import { ELDERLY_RECIPES } from './data/mockData';
 
 export default function App() {
-  const [profile, setProfile] = useState<ProfileState>({
-    adults: 2,
-    kids: 1,
-    activePreset: 'small-family',
-    activeDays: ['Mon', 'Tue', 'Wed', 'Thu'],
-    dishStyle: '2-Dish Balanced',
-    pacingConstraints: ['🍱 Next-Day Lunch Friendly', '👶 Picky-Eater Approved'],
-    eatingStyles: ['Mediterranean', 'High Protein (35g+)'],
-    allergies: ['Gluten-Free', 'Peanut & Tree Nut Free'],
-    dislikes: ['No Raw Cilantro', 'No Eggplant'],
-    grocer: 'fairprice',
-    budgetMidpoint: 120,
-    calorieTarget: 550,
-    proteinTarget: 38,
-    sodiumPreference: 'normal',
-    carbPreference: 'balanced',
+  const [profile, setProfile] = useState<ElderlyProfileState>({
+    elderlyCount: 2,
+    primaryCuisines: ['cantonese-teochew', 'peranakan'],
+    restrictions: ['low-sodium', 'diabetic-safe', 'dysphagia-soft'],
+    activeMealSlots: ['breakfast', 'lunch', 'dinner', 'supper'],
+    budgetPerMeal: 5.5,
+    textureLevel: 'Level 6: Soft & Bite-Sized (15mm max)',
+    chewingAssistanceRequired: false,
+    selectedGrocer: 'fairprice',
+    activeDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   });
 
-  const [currentTab, setCurrentTab] = useState<string>('preferences');
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [currentTab, setCurrentTab] = useState<string>('meal-planner');
   const [selectedRecipeModal, setSelectedRecipeModal] = useState<Recipe | null>(null);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [cartCount, setCartCount] = useState<number>(12);
 
-  const handleUpdateProfile = (updated: Partial<ProfileState>) => {
+  const handleUpdateProfile = (updated: Partial<ElderlyProfileState>) => {
     setProfile((prev) => ({ ...prev, ...updated }));
   };
 
   const handleSelectTab = (tab: string) => {
     setCurrentTab(tab);
-    if (tab === 'preferences') {
-      setCurrentStep(1);
-    } else if (tab === 'meal-planner') {
-      setCurrentStep(4);
-    } else if (tab === 'my-pantry-cart') {
-      setIsCartOpen(true);
-    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSelectStep = (stepNumber: number) => {
-    setCurrentStep(stepNumber);
-    setCurrentTab('preferences');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSaveAndGenerateWeek1 = () => {
-    setCurrentStep(4);
-    setCurrentTab('meal-planner');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleAddToCart = (recipe: Recipe) => {
+    setCartCount((prev) => prev + recipe.ingredients.length);
   };
 
   return (
     <div className="bg-[#f3fcf3] min-h-screen text-[#151d19] font-sans flex flex-col selection:bg-[#bceed0] selection:text-[#002113]">
-      {/* Top Header */}
+      {/* Top Bar Contract Header */}
       <Header
         currentTab={currentTab}
         onSelectTab={handleSelectTab}
-        cartCount={11}
+        cartCount={cartCount}
         onOpenCart={() => setIsCartOpen(true)}
       />
 
-      <main className="w-full pt-20 flex-1">
-        {/* If we are in preferences or meal-planner, show the 4-step progress banner */}
-        {(currentTab === 'preferences' || currentTab === 'meal-planner') && (
-          <StepProgressBar
-            currentStep={currentStep}
-            onSelectStep={handleSelectStep}
+      <main className="w-full pt-16 flex-1">
+        {currentTab === 'meal-planner' && (
+          <ElderlyWeekPlanStep
+            profile={profile}
+            onOpenRecipeModal={(recipe) => setSelectedRecipeModal(recipe)}
+            onOpenCart={() => setIsCartOpen(true)}
+            onNavigateToSetup={() => handleSelectTab('elderly-setup')}
           />
         )}
 
-        {/* Tab / Step Routing */}
-        {currentTab === 'recipe-discover' ? (
+        {currentTab === 'elderly-setup' && (
+          <ElderlySetupStep
+            profile={profile}
+            onUpdateProfile={handleUpdateProfile}
+            onProceedToWeeklyMenu={() => handleSelectTab('meal-planner')}
+          />
+        )}
+
+        {currentTab === 'recipe-library' && (
           <RecipeDiscover
+            profile={profile}
             onOpenRecipeModal={(recipe) => setSelectedRecipeModal(recipe)}
           />
-        ) : (
-          <>
-            {currentStep === 1 && (
-              <ProfileStep
-                profile={profile}
-                onUpdateProfile={handleUpdateProfile}
-                onSaveAndGenerate={handleSaveAndGenerateWeek1}
-                onOpenRecipeModal={(recipe) => setSelectedRecipeModal(recipe)}
-              />
-            )}
+        )}
 
-            {currentStep === 2 && (
-              <NutritionStep
-                profile={profile}
-                onUpdateProfile={handleUpdateProfile}
-                onNext={() => {
-                  setCurrentStep(3);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                onPrev={() => {
-                  setCurrentStep(1);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-              />
-            )}
-
-            {currentStep === 3 && (
-              <PantryStep
-                profile={profile}
-                onUpdateProfile={handleUpdateProfile}
-                onNext={() => {
-                  setCurrentStep(4);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                onPrev={() => {
-                  setCurrentStep(2);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-              />
-            )}
-
-            {currentStep === 4 && (
-              <WeekPlanStep
-                profile={profile}
-                onOpenRecipeModal={(recipe) => setSelectedRecipeModal(recipe)}
-                onOpenCart={() => setIsCartOpen(true)}
-                onRecalibrate={() => {
-                  setCurrentStep(1);
-                  setCurrentTab('preferences');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-              />
-            )}
-          </>
+        {currentTab === 'nutrition-guide' && (
+          <NutritionGuideStep
+            profile={profile}
+            onNavigateToWeeklyMenu={() => handleSelectTab('meal-planner')}
+          />
         )}
       </main>
 
-      {/* Cart Drawer */}
+      {/* Singapore Supermarkets Cart Drawer */}
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         profile={profile}
       />
 
-      {/* Detailed Recipe Modal */}
+      {/* Individual Recipe Modal */}
       <RecipeModal
         recipe={selectedRecipeModal}
         profile={profile}
         onClose={() => setSelectedRecipeModal(null)}
+        onAddToCart={handleAddToCart}
       />
 
       {/* Footer */}

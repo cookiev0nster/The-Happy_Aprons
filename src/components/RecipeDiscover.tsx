@@ -1,476 +1,341 @@
-import React, { useState, useEffect } from 'react';
-import { Recipe } from '../types';
-import { RECIPES } from '../data/mockData';
+import React, { useEffect, useState } from 'react';
+import { CuisineType, ElderlyProfileState, MealSlot, Recipe } from '../types';
+import { ELDERLY_RECIPES } from '../data/mockData';
 
 interface RecipeDiscoverProps {
+  profile: ElderlyProfileState;
   onOpenRecipeModal: (recipe: Recipe) => void;
 }
 
-interface LiveApiResponse {
-  success: boolean;
-  query: {
-    ingredient: string;
-    nutritionQuery: string;
-    pageSize: number;
-  };
-  sources: {
-    theMealDbEndpoint: string;
-    usdaEndpoint: string;
-  };
-  meals: Array<{
-    idMeal: string;
-    strMeal: string;
-    strMealThumb: string;
-  }>;
-  usdaNutrition: {
-    query: string;
-    totalHits?: number;
-    foods: Array<{
-      fdcId: number;
-      description: string;
-      brandOwner?: string;
-      nutrients: Record<string, { value: number; unit: string }>;
-    }>;
-    note?: string;
-  };
-}
-
 export const RecipeDiscover: React.FC<RecipeDiscoverProps> = ({
+  profile,
   onOpenRecipeModal,
 }) => {
-  const [activeView, setActiveView] = useState<'curated' | 'live-api'>('curated');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterTag, setFilterTag] = useState<string>('All');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState<MealSlot | 'all'>('all');
+  const [selectedCuisine, setSelectedCuisine] = useState<CuisineType | 'all'>('all');
+  const [apiData, setApiData] = useState<any>(null);
+  const [loadingApi, setLoadingApi] = useState(false);
+  const [apiQueryIngredient, setApiQueryIngredient] = useState('chicken');
 
-  // Live API States
-  const [liveIngredient, setLiveIngredient] = useState('chicken_breast');
-  const [liveNutritionQuery, setLiveNutritionQuery] = useState('cheddar');
-  const [liveData, setLiveData] = useState<LiveApiResponse | null>(null);
-  const [isLoadingLive, setIsLoadingLive] = useState(false);
-  const [healthStatus, setHealthStatus] = useState<any>(null);
-
-  const tags = [
-    'All',
-    'High Protein (35g+)',
-    'Mediterranean',
-    'Pescatarian',
-    'Plant-Forward / Flexitarian',
-    'Gluten-Free',
-  ];
-
-  const filteredRecipes = RECIPES.filter((r) => {
-    const matchesSearch =
-      r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.ingredients.some((i) => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesTag = filterTag === 'All' || r.dietTags.includes(filterTag);
-    return matchesSearch && matchesTag;
-  });
-
-  // Fetch live health & API data
-  const fetchLiveEndpoints = async (ingredient = liveIngredient, nutrition = liveNutritionQuery) => {
-    setIsLoadingLive(true);
+  // Query /api/recipes for live USDA & TheMealDB enrichment
+  const fetchLiveApiRecipes = async (ingredient: string) => {
+    setLoadingApi(true);
     try {
-      const [healthRes, recipesRes] = await Promise.all([
-        fetch('/api/health').then((r) => (r.ok ? r.json() : null)),
-        fetch(
-          `/api/recipes?ingredient=${encodeURIComponent(ingredient)}&nutritionQuery=${encodeURIComponent(
-            nutrition
-          )}&pageSize=5`
-        ).then((r) => (r.ok ? r.json() : null)),
-      ]);
-      setHealthStatus(healthRes);
-      setLiveData(recipesRes);
-    } catch (e) {
-      console.error('Failed to query live serverless endpoints', e);
+      const res = await fetch(
+        `/api/recipes?ingredient=${encodeURIComponent(ingredient)}&nutritionQuery=${encodeURIComponent(
+          ingredient
+        )}&pageSize=4&elderlyCount=${profile.elderlyCount}`
+      );
+      if (res.ok) {
+        const json = await res.json();
+        setApiData(json);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch from /api/recipes:', err);
     } finally {
-      setIsLoadingLive(false);
+      setLoadingApi(false);
     }
   };
 
   useEffect(() => {
-    if (activeView === 'live-api' && !liveData) {
-      fetchLiveEndpoints();
+    fetchLiveApiRecipes('chicken');
+  }, []);
+
+  const handleApiSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (apiQueryIngredient.trim()) {
+      fetchLiveApiRecipes(apiQueryIngredient.trim());
     }
-  }, [activeView]);
+  };
+
+  const filteredLocalRecipes = ELDERLY_RECIPES.filter((r) => {
+    const matchesSlot = selectedSlot === 'all' || r.mealSlot === selectedSlot;
+    const matchesCuisine = selectedCuisine === 'all' || r.cuisine === selectedCuisine;
+    const matchesSearch =
+      r.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (r.chineseTitle && r.chineseTitle.includes(searchTerm)) ||
+      r.ingredients.some((i) => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesSlot && matchesCuisine && matchesSearch;
+  });
 
   return (
-    <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-        <div className="max-w-2xl">
-          <span className="text-xs uppercase tracking-widest text-[#164530] font-bold">
-            Curated Atelier & Live Serverless Sync
-          </span>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#151d19] mt-1 mb-2">
-            Discover fast, zero-fatigue weeknight dinners.
-          </h1>
-          <p className="text-sm sm:text-base text-[#414943] leading-relaxed">
-            Browse chef-calibrated recipes or explore the live serverless feed connected to TheMealDB and USDA FoodData Central.
-          </p>
+    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      {/* Editorial Header */}
+      <div className="mb-8 max-w-3xl">
+        <span className="text-xs uppercase tracking-wider text-[#164530] font-bold block mb-1.5">
+          Elderly Recipe Library & Live Ingredient Verification
+        </span>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#151d19] tracking-tight">
+          Nourishing Dishes for Singapore Seniors
+        </h1>
+        <p className="text-xs sm:text-sm text-[#414943] mt-2 leading-relaxed">
+          Explore recipes calibrated for elderly digestion, deboning safety, and IDDSI texture levels. All recipes scale dynamically for your {profile.elderlyCount} {profile.elderlyCount === 1 ? 'senior' : 'seniors'}.
+        </p>
+      </div>
+
+      {/* Search & Filter Toolbar */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#e2eae2] shadow-2xs mb-8 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#414943] text-[20px]">
+              search
+            </span>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search recipes, ingredients (threadfin, pumpkin, tofu, congee, soup)..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#dce5dd] text-xs sm:text-sm text-[#151d19] focus:outline-none focus:border-[#164530]"
+            />
+          </div>
+
+          {/* Quick slot filter */}
+          <div className="flex items-center gap-1 overflow-x-auto bg-[#edf6ee] p-1 rounded-xl border border-[#dce5dd]">
+            {(['all', 'breakfast', 'lunch', 'dinner', 'supper'] as const).map((slot) => (
+              <button
+                key={slot}
+                type="button"
+                onClick={() => setSelectedSlot(slot)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors capitalize cursor-pointer whitespace-nowrap ${
+                  selectedSlot === slot
+                    ? 'bg-white text-[#164530] shadow-xs'
+                    : 'text-[#414943] hover:text-[#151d19]'
+                }`}
+              >
+                {slot}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* View Switcher Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-[#edf6ee] rounded-full border border-[#dce5dd]/60 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveView('curated')}
-            className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              activeView === 'curated'
-                ? 'bg-[#164530] text-white shadow-xs'
-                : 'text-[#414943] hover:text-[#151d19]'
-            }`}
-          >
-            Atelier Kitchen ({RECIPES.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView('live-api')}
-            className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeView === 'live-api'
-                ? 'bg-[#164530] text-white shadow-xs'
-                : 'text-[#414943] hover:text-[#151d19]'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px] text-[#bceed0]">hub</span>
-            Live USDA & TheMealDB
-          </button>
+        {/* Cuisine Filter Tags */}
+        <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-[#edf6ee] scrollbar-none text-xs">
+          <span className="text-[11px] font-bold text-[#414943] uppercase tracking-wider shrink-0">
+            Cuisine:
+          </span>
+          {[
+            { id: 'all', label: 'All Cuisines' },
+            { id: 'cantonese-teochew', label: 'Cantonese / Teochew' },
+            { id: 'peranakan', label: 'Peranakan' },
+            { id: 'hainanese', label: 'Hainanese' },
+            { id: 'malay', label: 'Malay' },
+            { id: 'indian', label: 'Indian' },
+            { id: 'western', label: 'Western' },
+          ].map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setSelectedCuisine(c.id as any)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                selectedCuisine === c.id
+                  ? 'bg-[#164530] text-white'
+                  : 'bg-[#edf6ee] text-[#414943] hover:text-[#151d19]'
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {activeView === 'curated' ? (
-        <>
-          {/* Search & Filter Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-8">
-            <div className="relative flex-1 max-w-md">
-              <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#414943] text-[20px]">
-                search
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search salmon, chicken, tofu, barramundi..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white border border-[#dce5dd] text-xs sm:text-sm text-[#151d19] focus:outline-none focus:border-[#164530]"
-              />
+      {/* Main Recipe Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+        {filteredLocalRecipes.map((recipe) => (
+          <div
+            key={recipe.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => onOpenRecipeModal(recipe)}
+            onKeyDown={(e) => e.key === 'Enter' && onOpenRecipeModal(recipe)}
+            className="bg-white rounded-2xl border border-[#e2eae2] overflow-hidden shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group text-left"
+          >
+            <div>
+              <div className="relative h-48 w-full overflow-hidden bg-slate-100">
+                <img
+                  src={recipe.image}
+                  alt={recipe.title}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                />
+                <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                  {recipe.mealSlot.toUpperCase()} · {recipe.textureLevel.split(':')[0]}
+                </div>
+                <div className="absolute bottom-2.5 right-2.5 bg-white/95 text-[#151d19] font-mono-data text-xs font-bold px-2 py-0.5 rounded shadow-xs">
+                  ~{recipe.prepMinutes}m
+                </div>
+              </div>
+
+              <div className="p-4">
+                <div className="flex items-center gap-2 text-xs text-[#414943] mb-1">
+                  <span>{recipe.cuisine.toUpperCase()}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-mono-data text-[#164530] font-bold">
+                    ${(recipe.estimatedCostPerPaxSgd * profile.elderlyCount).toFixed(2)} SGD for{' '}
+                    {profile.elderlyCount}pax
+                  </span>
+                </div>
+
+                <h3 className="font-bold text-base text-[#151d19] group-hover:text-[#164530] transition-colors leading-snug">
+                  {recipe.title}
+                </h3>
+                {recipe.chineseTitle && (
+                  <span className="text-xs text-[#414943] block mt-0.5">{recipe.chineseTitle}</span>
+                )}
+
+                <p className="text-xs text-[#414943] mt-2 line-clamp-2 leading-relaxed">
+                  {recipe.subtitle}
+                </p>
+
+                {/* Dietary pills */}
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {recipe.dietaryBadges.slice(0, 3).map((badge, idx) => (
+                    <span
+                      key={idx}
+                      className="text-[10px] text-[#164530] bg-[#edf6ee] px-2 py-0.5 rounded font-medium"
+                    >
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setFilterTag(t)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
-                    filterTag === t
-                      ? 'bg-[#164530] text-white shadow-2xs'
-                      : 'bg-[#edf6ee] text-[#414943] hover:bg-[#e2eae2]'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
+            <div className="p-4 pt-0">
+              <div className="py-2 px-3 rounded-xl bg-[#edf6ee] text-[#164530] text-xs font-bold flex items-center justify-between group-hover:bg-[#164530] group-hover:text-white transition-colors">
+                <span>View Recipe & Buy</span>
+                <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
+              </div>
             </div>
           </div>
+        ))}
+      </div>
 
-          {/* Grid of recipes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRecipes.map((recipe) => (
-              <div
-                key={recipe.id}
-                onClick={() => onOpenRecipeModal(recipe)}
-                className="bg-white rounded-2xl border border-[#e2eae2] overflow-hidden shadow-[0_2px_12px_rgba(22,69,48,0.04)] hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-              >
-                <div>
-                  <div className="relative h-48 bg-[#edf6ee] overflow-hidden">
-                    <img
-                      src={recipe.image}
-                      alt={recipe.title}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xs text-white text-[11px] font-bold">
-                      {recipe.dishStyle}
-                    </div>
-                    <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-full bg-white/90 backdrop-blur-xs text-[#164530] text-[11px] font-bold font-mono-data">
-                      ⏱️ {recipe.prepMinutes} mins
-                    </div>
-                  </div>
+      {/* LIVE SERVERLESS API VERIFICATION PANEL (/api/recipes) */}
+      <section className="bg-white p-6 sm:p-8 rounded-2xl border border-[#e2eae2] shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#edf6ee] mb-6">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-[#164530] mb-1">
+              <span className="material-symbols-outlined text-[16px]">sync</span>
+              <span>Live Express Serverless API Verification (/api/recipes & /api/health)</span>
+            </div>
+            <h2 className="text-lg font-bold text-[#151d19]">
+              USDA FoodData Central & TheMealDB Query Engine
+            </h2>
+            <p className="text-xs text-[#414943] mt-0.5">
+              Testing backend API integration for ingredient nutrient density and global recipe validation.
+            </p>
+          </div>
 
-                  <div className="p-5">
-                    <h3 className="text-base font-bold text-[#151d19] group-hover:text-[#164530] transition-colors">
-                      {recipe.title}
-                    </h3>
-                    {recipe.subtitle && (
-                      <p className="text-xs text-[#414943] mt-1">{recipe.subtitle}</p>
-                    )}
+          <form onSubmit={handleApiSearch} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={apiQueryIngredient}
+              onChange={(e) => setApiQueryIngredient(e.target.value)}
+              placeholder="e.g. chicken, salmon, tofu"
+              className="px-3 py-1.5 rounded-lg border border-[#dce5dd] text-xs focus:outline-none focus:border-[#164530]"
+            />
+            <button
+              type="submit"
+              disabled={loadingApi}
+              className="px-3.5 py-1.5 rounded-lg bg-[#164530] text-white text-xs font-bold hover:bg-[#23583f] transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {loadingApi ? 'Querying...' : 'Fetch Live Data'}
+            </button>
+          </form>
+        </div>
 
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {recipe.dietTags.slice(0, 2).map((dt) => (
-                        <span
-                          key={dt}
-                          className="px-2 py-0.5 rounded bg-[#edf6ee] text-[#164530] text-[10px] font-bold"
-                        >
-                          {dt}
-                        </span>
+        {apiData && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* USDA Nutrition Status */}
+              <div className="p-4 rounded-xl bg-[#edf6ee]/70 border border-[#dce5dd]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-[#164530]">
+                    USDA FoodData Central Records
+                  </span>
+                  <span className="text-[10px] font-semibold text-[#414943] bg-white px-2 py-0.5 rounded">
+                    Status: {apiData.usdaNutrition?.status}
+                  </span>
+                </div>
+                <p className="text-xs text-[#414943] mb-3">
+                  Query: <code>{apiData.query?.nutritionQuery}</code> · Hits:{' '}
+                  {apiData.usdaNutrition?.totalHits ?? 0}
+                </p>
+                {apiData.usdaNutrition?.message && (
+                  <p className="text-[11px] text-[#414943] italic bg-white p-2 rounded border border-[#dce5dd]">
+                    {apiData.usdaNutrition.message}
+                  </p>
+                )}
+                {Array.isArray(apiData.usdaNutrition?.foods) &&
+                  apiData.usdaNutrition.foods.length > 0 && (
+                    <div className="space-y-1.5 text-xs">
+                      {apiData.usdaNutrition.foods.slice(0, 2).map((f: any, i: number) => (
+                        <div key={i} className="p-2 bg-white rounded border border-[#e2eae2]">
+                          <strong className="block text-[#151d19]">{f.description}</strong>
+                          <span className="text-[11px] text-[#414943]">
+                            FDC ID: {f.fdcId} · Brand: {f.brandOwner || 'Generic'}
+                          </span>
+                        </div>
                       ))}
                     </div>
-                  </div>
-                </div>
+                  )}
+              </div>
 
-                <div className="px-5 py-3 border-t border-[#edf6ee] bg-[#fbfdfb] flex items-center justify-between text-xs font-mono-data">
-                  <span className="text-[#164530] font-bold">{recipe.proteinGrams}g Protein</span>
-                  <span className="text-[#9a4521] font-bold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                    Cook this &rarr;
+              {/* TheMealDB Live Recipes */}
+              <div className="p-4 rounded-xl bg-[#edf6ee]/70 border border-[#dce5dd]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-[#164530]">
+                    TheMealDB Global Records
+                  </span>
+                  <span className="text-[10px] font-semibold text-[#414943] bg-white px-2 py-0.5 rounded">
+                    Ingredient: {apiData.query?.ingredient}
+                  </span>
+                </div>
+                {Array.isArray(apiData.meals) && apiData.meals.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {apiData.meals.slice(0, 2).map((m: any) => (
+                      <div
+                        key={m.idMeal}
+                        className="p-2 bg-white rounded border border-[#e2eae2] flex items-center gap-2"
+                      >
+                        <img
+                          src={m.strMealThumb}
+                          alt={m.strMeal}
+                          className="w-10 h-10 rounded object-cover"
+                        />
+                        <span className="text-xs font-bold text-[#151d19] truncate">
+                          {m.strMeal}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#414943]">
+                    No immediate TheMealDB recipes for "{apiData.query?.ingredient}".
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Singapore Elderly Care Guidance from API */}
+            {apiData.singaporeElderlyInsights && (
+              <div className="p-3.5 rounded-xl bg-[#f3fcf3] border border-[#bceed0] text-xs text-[#002113] flex items-start gap-2.5">
+                <span className="material-symbols-outlined text-[#164530] text-[18px] shrink-0 mt-0.5">
+                  tips_and_updates
+                </span>
+                <div>
+                  <strong className="block mb-0.5">Singapore Elderly Care API Insight:</strong>
+                  <span>{apiData.singaporeElderlyInsights.textureGuidance} </span>
+                  <span className="text-[#414943]">
+                    {apiData.singaporeElderlyInsights.chewingSafetyNote}
                   </span>
                 </div>
               </div>
-            ))}
+            )}
           </div>
-        </>
-      ) : (
-        /* LIVE SERVERLESS ENDPOINTS VIEW */
-        <div className="space-y-6">
-          {/* Endpoint Status Card */}
-          <div className="bg-white rounded-2xl p-6 border border-[#e2eae2] shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#edf6ee]">
-              <div>
-                <span className="text-xs font-bold text-[#164530] uppercase tracking-wider">
-                  Live Serverless Connection Status
-                </span>
-                <h3 className="text-lg font-bold text-[#151d19] mt-0.5">
-                  /api/health & /api/recipes
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => fetchLiveEndpoints()}
-                disabled={isLoadingLive}
-                className="px-4 py-2 rounded-full bg-[#edf6ee] hover:bg-[#e2eae2] text-xs font-bold text-[#164530] transition-colors flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-              >
-                <span
-                  className={`material-symbols-outlined text-[16px] ${
-                    isLoadingLive ? 'animate-spin' : ''
-                  }`}
-                >
-                  refresh
-                </span>
-                {isLoadingLive ? 'Querying APIs...' : 'Refresh Live Status'}
-              </button>
-            </div>
-
-            {/* Health Status Badges */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-              <div className="p-4 rounded-xl bg-[#edf6ee]/70 border border-[#dce5dd]/60 flex items-start gap-3">
-                <span className="material-symbols-outlined text-[#164530] text-[24px]">
-                  check_circle
-                </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <strong className="text-xs text-[#151d19]">TheMealDB Connection</strong>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-[#bceed0] text-[#002113]">
-                      HTTP 200 OK
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#414943] mt-0.5 font-mono-data">
-                    Endpoint: https://www.themealdb.com/api/json/v1/1/filter.php?i=chicken_breast
-                  </p>
-                  {healthStatus?.connections?.theMealDb && (
-                    <span className="text-[11px] text-[#164530] font-mono-data mt-1 block">
-                      Latency: {healthStatus.connections.theMealDb.latencyMs}ms · Sample Count:{' '}
-                      {healthStatus.connections.theMealDb.sampleRecipeCount}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-[#edf6ee]/70 border border-[#dce5dd]/60 flex items-start gap-3">
-                <span className="material-symbols-outlined text-[#164530] text-[24px]">
-                  {healthStatus?.connections?.usdaFoodDataCentral?.status === 'connected'
-                    ? 'verified'
-                    : healthStatus?.connections?.usdaFoodDataCentral?.status === 'unconfigured'
-                    ? 'vpn_key'
-                    : 'info'}
-                </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <strong className="text-xs text-[#151d19]">USDA FoodData Central</strong>
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                        healthStatus?.connections?.usdaFoodDataCentral?.status === 'connected'
-                          ? 'bg-[#bceed0] text-[#002113]'
-                          : 'bg-[#ffddb0] text-[#553800]'
-                      }`}
-                    >
-                      {healthStatus?.connections?.usdaFoodDataCentral?.status === 'connected'
-                        ? 'Connected'
-                        : 'Awaiting DATA_GOV_KEY'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#414943] mt-0.5 font-mono-data">
-                    GET https://api.nal.usda.gov/fdc/v1/foods/search?query=cheddar&pageSize=5&api_key=&lt;DATA_GOV_KEY&gt;
-                  </p>
-                  <p className="text-[10px] text-[#717973] font-mono-data">
-                    Headers: AccountKey: &lt;DATA_GOV_KEY&gt; · accept: application/json
-                  </p>
-                  {healthStatus?.connections?.usdaFoodDataCentral?.message && (
-                    <span className="text-[11px] text-[#553800] mt-1 block">
-                      {healthStatus.connections.usdaFoodDataCentral.message}
-                    </span>
-                  )}
-                  {healthStatus?.connections?.usdaFoodDataCentral?.latencyMs !== undefined && (
-                    <span className="text-[11px] text-[#164530] font-mono-data mt-1 block">
-                      Latency: {healthStatus.connections.usdaFoodDataCentral.latencyMs}ms · Items:{' '}
-                      {healthStatus.connections.usdaFoodDataCentral.sampleItemCount}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Live Filter Controls */}
-            <div className="mt-6 pt-4 border-t border-[#edf6ee] grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-              <div className="sm:col-span-5">
-                <label className="text-[11px] uppercase tracking-wider font-bold text-[#414943] block mb-1">
-                  TheMealDB Ingredient Filter (?i=)
-                </label>
-                <input
-                  type="text"
-                  value={liveIngredient}
-                  onChange={(e) => setLiveIngredient(e.target.value)}
-                  placeholder="chicken_breast, salmon, beef..."
-                  className="w-full bg-[#edf6ee] px-3.5 py-2 rounded-xl text-xs font-mono-data border border-[#dce5dd] focus:bg-white focus:outline-none"
-                />
-              </div>
-
-              <div className="sm:col-span-5">
-                <label className="text-[11px] uppercase tracking-wider font-bold text-[#414943] block mb-1">
-                  USDA FoodData Query (?query=)
-                </label>
-                <input
-                  type="text"
-                  value={liveNutritionQuery}
-                  onChange={(e) => setLiveNutritionQuery(e.target.value)}
-                  placeholder="cheddar, salmon, oats..."
-                  className="w-full bg-[#edf6ee] px-3.5 py-2 rounded-xl text-xs font-mono-data border border-[#dce5dd] focus:bg-white focus:outline-none"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <button
-                  type="button"
-                  onClick={() => fetchLiveEndpoints(liveIngredient, liveNutritionQuery)}
-                  className="w-full py-2.5 rounded-xl bg-[#164530] hover:bg-[#2f5d46] text-white text-xs font-bold transition-all cursor-pointer"
-                >
-                  Execute Query
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Results: Meals & USDA Nutrients */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* TheMealDB Results (7 cols) */}
-            <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-[#e2eae2] shadow-2xs">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#edf6ee]">
-                <div>
-                  <h4 className="text-sm font-bold text-[#151d19]">
-                    Live TheMealDB Meals ({liveData?.meals?.length || 0})
-                  </h4>
-                  <span className="text-[11px] text-[#414943] font-mono-data">
-                    Filtered by: "{liveIngredient}"
-                  </span>
-                </div>
-                <span className="text-xs font-mono-data text-[#164530] font-bold">
-                  GET filter.php?i={liveIngredient}
-                </span>
-              </div>
-
-              {isLoadingLive ? (
-                <div className="py-12 text-center text-xs text-[#414943]">
-                  Fetching meals from TheMealDB...
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-1">
-                  {liveData?.meals?.slice(0, 8).map((meal) => (
-                    <div
-                      key={meal.idMeal}
-                      className="p-2.5 rounded-xl border border-[#e2eae2] hover:border-[#164530] transition-colors flex items-center gap-3 bg-[#edf6ee]/30"
-                    >
-                      <img
-                        src={meal.strMealThumb}
-                        alt={meal.strMeal}
-                        className="w-12 h-12 rounded-lg object-cover shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-[#151d19] truncate">{meal.strMeal}</p>
-                        <span className="text-[10px] text-[#414943] font-mono-data">
-                          ID: #{meal.idMeal}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* USDA FoodData Central Results (5 cols) */}
-            <div className="lg:col-span-5 bg-white rounded-2xl p-6 border border-[#e2eae2] shadow-2xs">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#edf6ee]">
-                <div>
-                  <h4 className="text-sm font-bold text-[#151d19]">USDA FoodData Central</h4>
-                  <span className="text-[11px] text-[#414943] font-mono-data">
-                    Query: "{liveNutritionQuery}"
-                  </span>
-                </div>
-                <span className="text-xs font-mono-data text-[#164530] font-bold">
-                  FDC Search API
-                </span>
-              </div>
-
-              {isLoadingLive ? (
-                <div className="py-12 text-center text-xs text-[#414943]">
-                  Fetching USDA nutrient profiles...
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                  {liveData?.usdaNutrition?.foods?.map((food) => (
-                    <div
-                      key={food.fdcId}
-                      className="p-3 rounded-xl border border-[#e2eae2] bg-[#edf6ee]/40 text-xs"
-                    >
-                      <div className="flex justify-between items-start mb-1.5">
-                        <span className="font-bold text-[#151d19] leading-snug">
-                          {food.description}
-                        </span>
-                        <span className="text-[10px] text-[#164530] font-mono-data font-bold">
-                          FDC #{food.fdcId}
-                        </span>
-                      </div>
-                      {food.brandOwner && (
-                        <span className="text-[10px] text-[#414943] block mb-2">
-                          Brand: {food.brandOwner}
-                        </span>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-1.5 mt-2 pt-2 border-t border-[#dce5dd]/60 font-mono-data text-[10px]">
-                        {Object.entries(food.nutrients || {})
-                          .slice(0, 4)
-                          .map(([name, val]: [string, any]) => (
-                            <div key={name} className="flex justify-between">
-                              <span className="text-[#414943] truncate pr-1">{name}:</span>
-                              <span className="font-bold text-[#151d19]">
-                                {val.value} {val.unit}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </section>
     </div>
   );
 };

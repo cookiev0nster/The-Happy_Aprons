@@ -20,6 +20,10 @@ export interface EnrichedRecipeResponse {
   query: {
     ingredient: string;
     nutritionQuery: string;
+    mealSlot?: string;
+    cuisine?: string;
+    restriction?: string;
+    elderlyCount?: number;
     pageSize: number;
   };
   sources: {
@@ -39,6 +43,11 @@ export interface EnrichedRecipeResponse {
     }>;
     message?: string;
     error?: string;
+  };
+  singaporeElderlyInsights?: {
+    textureGuidance: string;
+    chewingSafetyNote: string;
+    localSupermarketAvailability: string[];
   };
 }
 
@@ -166,7 +175,11 @@ export async function fetchUsdaNutrition(query: string, pageSize = 5): Promise<{
 
 export default async function recipesHandler(req: Request, res: Response) {
   const ingredient = (req.query.ingredient as string) || (req.query.i as string) || 'chicken_breast';
-  const nutritionQuery = (req.query.nutritionQuery as string) || (req.query.query as string) || 'cheddar';
+  const nutritionQuery = (req.query.nutritionQuery as string) || (req.query.query as string) || 'tofu';
+  const mealSlot = (req.query.mealSlot as string) || undefined;
+  const cuisine = (req.query.cuisine as string) || undefined;
+  const restriction = (req.query.restriction as string) || undefined;
+  const elderlyCount = parseInt(req.query.elderlyCount as string, 10) || 2;
   const pageSize = parseInt(req.query.pageSize as string, 10) || 5;
 
   const [meals, usdaResult] = await Promise.all([
@@ -180,6 +193,10 @@ export default async function recipesHandler(req: Request, res: Response) {
     query: {
       ingredient,
       nutritionQuery,
+      mealSlot,
+      cuisine,
+      restriction,
+      elderlyCount,
       pageSize,
     },
     sources: {
@@ -194,6 +211,16 @@ export default async function recipesHandler(req: Request, res: Response) {
       foods: usdaResult.foods,
       message: usdaResult.message,
       error: usdaResult.error,
+    },
+    singaporeElderlyInsights: {
+      textureGuidance: 'Recommended IDDSI Level 5 (Minced & Moist) or Level 6 (Soft & Bite-Sized) for Singapore seniors with mild swallowing or dental loss.',
+      chewingSafetyNote: 'Always debone fish (threadfin, barramundi) thoroughly; steam leafy vegetable stems until fork-crushable.',
+      localSupermarketAvailability: [
+        'FairPrice Online (Pasar Fresh Chilled Counters)',
+        'RedMart (Lazada 2-hr Chilled Delivery)',
+        'Cold Storage / CS Fresh (Air-Flown Fish & Organic Tofu)',
+        'Sheng Siong Online (Fresh Pasar Seafood & Chinese Herbal Soup Packs)',
+      ],
     },
   };
 

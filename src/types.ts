@@ -1,76 +1,117 @@
-export type HouseholdPresetId = 'solo' | 'couples' | 'small-family' | 'big-table';
-
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
-export type DishStyle = '1-Dish Wonder' | '2-Dish Balanced' | '3-Dish Family Feast';
+export type CuisineType =
+  | 'cantonese-teochew'
+  | 'peranakan'
+  | 'hainanese'
+  | 'malay'
+  | 'indian'
+  | 'western';
 
-export type GrocerId = 'fairprice' | 'redmart' | 'coldstorage' | 'amazonfresh';
+export type DietaryRestriction =
+  | 'low-sodium'
+  | 'diabetic-safe'
+  | 'dysphagia-soft'
+  | 'low-purine'
+  | 'renal-safe'
+  | 'lactose-free'
+  | 'halal'
+  | 'vegetarian';
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'supper';
+
+export type TextureLevel =
+  | 'Level 7: Easy to Chew'
+  | 'Level 6: Soft & Bite-Sized (15mm max)'
+  | 'Level 5: Minced & Moist (4mm max)'
+  | 'Level 4: Pureed & Smooth';
+
+export type GrocerId = 'fairprice' | 'redmart' | 'coldstorage' | 'shengsiong';
 
 export interface GrocerOption {
   id: GrocerId;
   name: string;
   tagline: string;
-  iconName: string;
+  deliveryTime: string;
   freeDeliveryThreshold: number;
+  searchUrlTemplate: string;
+  homeUrl: string;
 }
 
-export interface ProfileState {
-  adults: number;
-  kids: number;
-  activePreset: HouseholdPresetId | 'custom';
+export interface ElderlyProfileState {
+  elderlyCount: number;
+  primaryCuisines: CuisineType[];
+  restrictions: DietaryRestriction[];
+  activeMealSlots: MealSlot[];
+  budgetPerMeal: number; // in SGD
+  textureLevel: TextureLevel;
+  chewingAssistanceRequired: boolean;
+  selectedGrocer: GrocerId;
   activeDays: DayOfWeek[];
-  dishStyle: DishStyle;
-  pacingConstraints: string[];
-  eatingStyles: string[];
-  allergies: string[];
-  dislikes: string[];
-  grocer: GrocerId;
-  budgetMidpoint: number;
-  calorieTarget: number;
-  proteinTarget: number;
-  carbPreference: 'balanced' | 'low' | 'complex';
-  sodiumPreference: 'normal' | 'low-sodium' | 'no-msg';
+}
+
+export interface RecipeIngredient {
+  name: string;
+  baseAmountPerPax: number;
+  unit: string;
+  category: 'produce' | 'protein' | 'pantry' | 'grains';
+  singaporeSearchTerm: string;
+  estimatedPricePerPaxSgd: number;
+  elderlyPreparationTip?: string;
+}
+
+export interface ElderlyNutritionInfo {
+  calories: number;
+  proteinGrams: number;
+  calciumMg: number;
+  sodiumMg: number;
+  potassiumMg: number;
+  dietaryFiberGrams: number;
+  glycemicIndexTier: 'Low' | 'Medium';
+}
+
+export interface CaregiverPrepTips {
+  deboningAdvice: string;
+  textureModification: string;
+  steamingOrSimmerTime: string;
+  swallowingSafetyTip: string;
+  domesticHelperTip?: string;
 }
 
 export interface Recipe {
   id: string;
   title: string;
-  subtitle?: string;
-  dishStyle: DishStyle;
+  chineseTitle?: string;
+  subtitle: string;
+  mealSlot: MealSlot;
+  cuisine: CuisineType;
   prepMinutes: number;
-  proteinGrams: number;
-  calories: number;
   image: string;
-  dietTags: string[];
-  mainDish: string;
-  sideDish?: string;
-  soupDish?: string;
-  ingredients: {
-    name: string;
-    amount: string;
-    category: 'produce' | 'protein' | 'pantry' | 'bakery';
-    zeroWasteNote?: string;
-  }[];
-  instructions: string[];
-  singaporeTip?: string;
+  textureLevel: TextureLevel;
+  dietaryBadges: string[];
+  elderlyNutrition: ElderlyNutritionInfo;
+  estimatedCostPerPaxSgd: number;
+  ingredients: RecipeIngredient[];
+  caregiverTips: CaregiverPrepTips;
+  cookingSteps: string[];
+  singaporeGrocerRecommendation: string;
 }
 
-export interface MealPlanDay {
+export interface WeeklyScheduleDay {
   day: DayOfWeek;
-  recipe: Recipe;
-  servings: number;
-  adultCount: number;
-  kidCount: number;
-  zeroWasteLink: string;
+  dateLabel: string;
+  meals: {
+    [key in MealSlot]?: Recipe;
+  };
 }
 
-export interface CartItem {
+export interface ConsolidatedCartItem {
   id: string;
   name: string;
-  quantity: string;
-  estimatedPriceSgd: number;
-  category: 'produce' | 'protein' | 'pantry';
-  alreadyInPantry: boolean;
-  usedInDays: DayOfWeek[];
-  zeroWasteSharedWith?: string;
+  totalQuantity: string;
+  category: 'produce' | 'protein' | 'pantry' | 'grains';
+  estimatedCostSgd: number;
+  singaporeSearchTerm: string;
+  usedInMeals: Array<{ day: DayOfWeek; mealSlot: MealSlot; recipeTitle: string }>;
+  helperNotes?: string;
 }
