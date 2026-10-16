@@ -10,10 +10,10 @@ export const Footer: React.FC<FooterProps> = ({ onSelectTab }) => {
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
         <div className="flex items-center gap-2.5">
           <div className="w-6 h-6 rounded-full bg-[#164530] flex items-center justify-center text-[#bceed0]">
-            <span className="material-symbols-outlined text-[14px]">apron</span>
+            <span className="material-symbols-outlined text-[14px]">nutrition</span>
           </div>
           <span className="text-xs sm:text-sm font-semibold text-[#414943]">
-            © 2025 The Happy Aprons. Nourishing everyday living in Singapore.
+            © {new Date().getFullYear()} NourishMe. Nourishing everyday living in Singapore.
           </span>
         </div>
 

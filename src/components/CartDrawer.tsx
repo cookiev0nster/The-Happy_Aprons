@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ProfileState } from '../types';
 import { GROCER_OPTIONS } from '../data/mockData';
 
@@ -13,6 +13,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onClose,
   profile,
 }) => {
+  const [isExported, setIsExported] = useState(false);
+
   if (!isOpen) return null;
 
   const currentGrocer = GROCER_OPTIONS.find((g) => g.id === profile.grocer) || GROCER_OPTIONS[0];
@@ -121,17 +123,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              alert(`Cart exported to ${currentGrocer.name}! Your items are staged for Sunday evening delivery.`);
-              onClose();
-            }}
-            className="w-full py-3.5 rounded-full bg-[#164530] hover:bg-[#2f5d46] text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span>Proceed to {currentGrocer.name} Checkout</span>
-            <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-          </button>
+          {isExported ? (
+            <div className="w-full py-3.5 px-4 rounded-2xl bg-[#bceed0] text-[#002113] text-xs font-bold flex items-center justify-center gap-2 animate-in fade-in">
+              <span className="material-symbols-outlined text-[20px] text-[#164530]">check_circle</span>
+              <span>Staged for Sunday Delivery at {currentGrocer.name}!</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setIsExported(true);
+                setTimeout(() => {
+                  setIsExported(false);
+                  onClose();
+                }, 2200);
+              }}
+              className="w-full py-3.5 rounded-full bg-[#164530] hover:bg-[#2f5d46] text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <span>Proceed to {currentGrocer.name} Checkout</span>
+              <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

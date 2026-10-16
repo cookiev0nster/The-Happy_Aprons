@@ -25,10 +25,10 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2.5 text-left focus:outline-none group cursor-pointer"
           >
             <div className="w-9 h-9 rounded-full bg-[#164530] flex items-center justify-center text-[#bceed0] shadow-sm transition-transform group-hover:scale-105">
-              <span className="material-symbols-outlined text-[20px]">apron</span>
+              <span className="material-symbols-outlined text-[20px]">nutrition</span>
             </div>
             <span className="text-[19px] font-bold text-[#164530] tracking-tight whitespace-nowrap">
-              The Happy Aprons
+              NourishMe
             </span>
           </button>
         </div>
@@ -106,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#e2eae2] py-2 z-50 text-left">
                 <div className="px-4 py-2 border-b border-[#edf6ee]">
-                  <p className="text-xs font-bold text-[#151d19]">cookiev0nster@gmail.com</p>
+                  <p className="text-xs font-bold text-[#151d19]">rachelkoh10@gmail.com</p>
                   <p className="text-[11px] text-[#414943]">Singapore Atelier Member</p>
                 </div>
                 <button
