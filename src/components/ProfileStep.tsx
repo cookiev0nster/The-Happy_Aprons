@@ -889,7 +889,7 @@ export const ProfileStep: React.FC<ProfileStepProps> = ({
                 lightbulb
               </span>
               <div>
-                <h5 className="text-xs font-bold text-[#380d00]">NourishMe Pantry Engine</h5>
+                <h5 className="text-xs font-bold text-[#380d00]">NourishMe Zero-Waste Pantry Engine</h5>
                 <p className="text-xs text-[#414943] mt-0.5 leading-relaxed">
                   If a recipe needs 2 stalks of celery or spring onion, your other dinners this week will automatically utilize the remaining bunch. Zero half-used vegetables going slimy in your fridge crisper.
                 </p>
