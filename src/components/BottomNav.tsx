@@ -19,11 +19,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     { tab: 'basket', label: 'Basket', icon: 'shopping_basket', hasBadge: true },
     { tab: 'saved-orders', label: 'Saved', icon: 'favorite' },
     { tab: 'profile', label: 'Profile', icon: 'person' },
+    { tab: 'talk-to-us', label: 'Talk to Us', icon: 'forum' },
   ];
 
   return (
-    <nav aria-label="Mobile Navigation" className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#e2eae2] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-2 py-1.5">
-      <div className="grid grid-cols-6 gap-1 max-w-md mx-auto">
+    <nav aria-label="Mobile Navigation" className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#e2eae2] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] px-1 py-1.5">
+      <div className="grid grid-cols-7 gap-0.5 max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = activeTab === item.tab;
           return (

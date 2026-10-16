@@ -182,4 +182,4 @@ export interface DietaryRecipe {
   clinicalDietitianTip: string;
 }
 
-export type ActiveTab = 'home' | 'discover' | 'recipes' | 'basket' | 'saved-orders' | 'profile';
+export type ActiveTab = 'home' | 'discover' | 'recipes' | 'basket' | 'saved-orders' | 'profile' | 'talk-to-us';

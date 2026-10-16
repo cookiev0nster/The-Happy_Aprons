@@ -199,6 +199,18 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Dietary Profile
           </button>
+          <button
+            type="button"
+            onClick={() => onSelectTab('talk-to-us')}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              activeTab === 'talk-to-us'
+                ? 'bg-[#164530] text-white shadow-xs'
+                : 'text-[#414943] hover:text-[#151d19]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[15px]">forum</span>
+            <span>Talk to Us</span>
+          </button>
         </nav>
 
         {/* Actions Zone: Admin + Basket */}

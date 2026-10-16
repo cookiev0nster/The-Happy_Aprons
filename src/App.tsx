@@ -32,6 +32,7 @@ import { ProductDetailModal } from './components/ProductDetailModal';
 import { ProductComparisonModal } from './components/ProductComparisonModal';
 import { CheckoutModal } from './components/CheckoutModal';
 import { AdminDashboardModal } from './components/AdminDashboardModal';
+import { TalkToUsView } from './components/TalkToUsView';
 
 export default function App() {
   // Navigation & Profile State
@@ -282,6 +283,10 @@ export default function App() {
             onUpdateProfile={handleUpdateProfile}
             onAddNewProfile={handleAddNewProfile}
           />
+        )}
+
+        {activeTab === 'talk-to-us' && (
+          <TalkToUsView />
         )}
       </main>
 
